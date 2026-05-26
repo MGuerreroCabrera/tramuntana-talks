@@ -8,7 +8,7 @@ exports.getAll = async (req, res) => {
     if (location) filter.location = location;
 
     const talks = await Talk.find(filter)
-      .populate('speakerIds', 'fullName position bio')
+      .populate('speakerIds', 'fullName photoUrl position bio')
       .populate('attendeeIds', 'fullName email')
       .sort({ date: 1, time: 1 });
     res.json(talks);
@@ -20,7 +20,7 @@ exports.getAll = async (req, res) => {
 exports.getById = async (req, res) => {
   try {
     const talk = await Talk.findById(req.params.id)
-      .populate('speakerIds', 'fullName position bio')
+      .populate('speakerIds', 'fullName photoUrl position bio')
       .populate('attendeeIds', 'fullName email');
     if (!talk) {
       return res.status(404).json({ message: 'Talk not found' });

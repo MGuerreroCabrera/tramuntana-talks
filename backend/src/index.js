@@ -10,6 +10,7 @@ const userRoutes = require('./api/routes/userRoutes');
 const speakerRoutes = require('./api/routes/speakerRoutes');
 const talkRoutes = require('./api/routes/talkRoutes');
 const attendeeRoutes = require('./api/routes/attendeeRoutes');
+const publicRoutes = require('./api/routes/publicRoutes');
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/public', publicRoutes);
 app.use('/api/users', auth, userRoutes);
 app.use('/api/speakers', auth, speakerRoutes);
 app.use('/api/talks', auth, talkRoutes);

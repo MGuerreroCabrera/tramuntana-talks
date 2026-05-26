@@ -1,5 +1,14 @@
 const mongoose = require('mongoose');
 
+const hasLocalizedText = (value) => Boolean(
+  value
+  && typeof value === 'object'
+  && typeof value.ca === 'string'
+  && value.ca.trim()
+  && typeof value.es === 'string'
+  && value.es.trim()
+);
+
 const speakerSchema = new mongoose.Schema(
   {
     fullName: {
@@ -7,14 +16,25 @@ const speakerSchema = new mongoose.Schema(
       required: [true, 'Full name is required'],
       trim: true,
     },
-    position: {
+    photoUrl: {
       type: String,
-      required: [true, 'Position is required'],
       trim: true,
     },
+    position: {
+      type: mongoose.Schema.Types.Mixed,
+      required: [true, 'Position is required'],
+      validate: {
+        validator: hasLocalizedText,
+        message: 'Position requires Catalan and Spanish text',
+      },
+    },
     bio: {
-      type: String,
+      type: mongoose.Schema.Types.Mixed,
       required: [true, 'Bio is required'],
+      validate: {
+        validator: hasLocalizedText,
+        message: 'Bio requires Catalan and Spanish text',
+      },
     },
   },
   {

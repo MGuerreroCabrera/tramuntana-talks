@@ -65,12 +65,24 @@ const getId = (value) => value?._id || value?.id || value
 const getIds = (values = []) => values.map(getId).filter(Boolean)
 const toInputDate = (value) => (value ? value.slice(0, 10) : '')
 const formatDate = (value) => (value ? format(parseISO(value), 'dd MMM yyyy', { locale: es }) : 'Sin fecha')
+const getLocalizedText = (value, preferredLang = 'ca') => {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  return value[preferredLang] || value.ca || value.es || ''
+}
+const getLocalizedFormValue = (value, lang) => (typeof value === 'string' ? value : value?.[lang] || '')
 
 const countTalkAttendees = (talk) => talk.attendeeIds?.length || 0
 
 const buildTalkPayload = (values, speakerIds) => ({
-  title: values.title.trim(),
-  description: values.description.trim(),
+  title: {
+    ca: values.titleCa.trim(),
+    es: values.titleEs.trim(),
+  },
+  description: {
+    ca: values.descriptionCa.trim(),
+    es: values.descriptionEs.trim(),
+  },
   date: values.date,
   time: values.time,
   location: values.location,
@@ -309,7 +321,7 @@ const TalksTable = ({ talks, compact = false, onEdit, onDelete }) => (
       <tbody>
         {talks.map((talk) => (
           <tr key={talk._id}>
-            <td>{talk.title}</td>
+            <td>{getLocalizedText(talk.title)}</td>
             <td>{formatDate(talk.date)}</td>
             <td>{talk.time}</td>
             <td>{locationLabels[talk.location] || talk.location}</td>
@@ -318,7 +330,7 @@ const TalksTable = ({ talks, compact = false, onEdit, onDelete }) => (
             {!compact ? (
               <td className="action-cell">
                 <button type="button" onClick={() => onEdit(talk)}>Editar</button>
-                <button type="button" className="danger-button" onClick={() => onDelete('talks', talk._id, `la charla ${talk.title}`)}>
+                <button type="button" className="danger-button" onClick={() => onDelete('talks', talk._id, `la charla ${getLocalizedText(talk.title)}`)}>
                   Eliminar
                 </button>
               </td>
@@ -342,30 +354,55 @@ const TalksSection = ({ talks, speakers, editing, token, onSuccess, onEdit, onDe
 )
 
 const TalkForm = ({ editing, speakers, token, onSuccess }) => {
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm()
+  const { register, handleSubmit, reset, getValues, formState: { errors, isSubmitting } } = useForm()
 
   useEffect(() => {
     reset({
-      title: editing?.title || '',
-      description: editing?.description || '',
+      titleCa: getLocalizedFormValue(editing?.title, 'ca'),
+      titleEs: getLocalizedFormValue(editing?.title, 'es'),
+      descriptionCa: getLocalizedFormValue(editing?.description, 'ca'),
+      descriptionEs: getLocalizedFormValue(editing?.description, 'es'),
       date: toInputDate(editing?.date),
       time: editing?.time || '',
       location: editing?.location || 'auditorium',
       speakerIds: getIds(editing?.speakerIds),
       newSpeakerFullName: '',
-      newSpeakerPosition: '',
-      newSpeakerBio: '',
+      newSpeakerPhotoUrl: '',
+      newSpeakerPositionCa: '',
+      newSpeakerPositionEs: '',
+      newSpeakerBioCa: '',
+      newSpeakerBioEs: '',
     })
   }, [editing, reset])
+
+  const validateNewSpeakerField = (value) => {
+    const values = getValues()
+    const isCreatingSpeaker = [
+      values.newSpeakerFullName,
+      values.newSpeakerPositionCa,
+      values.newSpeakerPositionEs,
+      values.newSpeakerBioCa,
+      values.newSpeakerBioEs,
+    ].some((fieldValue) => fieldValue?.trim())
+
+    return !isCreatingSpeaker || value?.trim() ? true : 'Completa todos los campos del ponente rápido'
+  }
 
   const onSubmit = async (values) => {
     let speakerIds = Array.isArray(values.speakerIds) ? values.speakerIds : values.speakerIds ? [values.speakerIds] : []
 
-    if (values.newSpeakerFullName || values.newSpeakerPosition || values.newSpeakerBio) {
+    if (values.newSpeakerFullName || values.newSpeakerPositionCa || values.newSpeakerPositionEs || values.newSpeakerBioCa || values.newSpeakerBioEs) {
       const speaker = await createResource('speakers', token, {
         fullName: values.newSpeakerFullName.trim(),
-        position: values.newSpeakerPosition.trim(),
-        bio: values.newSpeakerBio.trim(),
+        photoUrl: values.newSpeakerPhotoUrl.trim(),
+        position: {
+          ca: values.newSpeakerPositionCa.trim(),
+          es: values.newSpeakerPositionEs.trim(),
+        },
+        bio: {
+          ca: values.newSpeakerBioCa.trim(),
+          es: values.newSpeakerBioEs.trim(),
+        },
       })
       speakerIds = [...new Set([...speakerIds, speaker._id])]
     }
@@ -383,15 +420,28 @@ const TalkForm = ({ editing, speakers, token, onSuccess }) => {
   return (
     <FormPanel title={editing ? 'Editar charla' : 'Nueva charla'} kicker="Charlas">
       <form className="admin-form" onSubmit={handleSubmit(onSubmit)} noValidate>
-        <Field label="Título" error={errors.title?.message}><input {...register('title', { required: 'El título es obligatorio' })} /></Field>
-        <Field label="Descripción" error={errors.description?.message}><textarea rows="4" {...register('description', { required: 'La descripción es obligatoria' })} /></Field>
+        <div className="form-grid">
+          <Field label="Título (CA)" error={errors.titleCa?.message}><input {...register('titleCa', { required: 'El título en catalán es obligatorio' })} /></Field>
+          <Field label="Título (ES)" error={errors.titleEs?.message}><input {...register('titleEs', { required: 'El título en castellano es obligatorio' })} /></Field>
+        </div>
+        <Field label="Descripción (CA)" error={errors.descriptionCa?.message}><textarea rows="4" {...register('descriptionCa', { required: 'La descripción en catalán es obligatoria' })} /></Field>
+        <Field label="Descripción (ES)" error={errors.descriptionEs?.message}><textarea rows="4" {...register('descriptionEs', { required: 'La descripción en castellano es obligatoria' })} /></Field>
         <div className="form-grid">
           <Field label="Fecha" error={errors.date?.message}><input type="date" {...register('date', { required: 'La fecha es obligatoria' })} /></Field>
           <Field label="Hora" error={errors.time?.message}><input type="time" {...register('time', { required: 'La hora es obligatoria' })} /></Field>
         </div>
         <Field label="Ubicación"><select {...register('location')}><option value="auditorium">Auditorio</option><option value="pressRoom">Sala de prensa</option><option value="emprenbitSpace">Espacio Emprenbit</option></select></Field>
         <Field label="Ponentes existentes"><select multiple {...register('speakerIds')}>{speakers.map((speaker) => <option key={speaker._id} value={speaker._id}>{speaker.fullName}</option>)}</select></Field>
-        <div className="inline-create"><p>Alta rápida de ponente</p><input placeholder="Nombre completo" {...register('newSpeakerFullName')} /><input placeholder="Cargo o empresa" {...register('newSpeakerPosition')} /><textarea rows="3" placeholder="Biografía" {...register('newSpeakerBio')} /></div>
+        <div className="inline-create">
+          <p>Alta rápida de ponente</p>
+          <input placeholder="Nombre completo" {...register('newSpeakerFullName', { validate: validateNewSpeakerField })} />
+          <input placeholder="URL de la foto" {...register('newSpeakerPhotoUrl')} />
+          <input placeholder="Cargo o empresa (CA)" {...register('newSpeakerPositionCa', { validate: validateNewSpeakerField })} />
+          <input placeholder="Cargo o empresa (ES)" {...register('newSpeakerPositionEs', { validate: validateNewSpeakerField })} />
+          <textarea rows="3" placeholder="Biografía (CA)" {...register('newSpeakerBioCa', { validate: validateNewSpeakerField })} />
+          <textarea rows="3" placeholder="Biografía (ES)" {...register('newSpeakerBioEs', { validate: validateNewSpeakerField })} />
+          {errors.newSpeakerFullName || errors.newSpeakerPositionCa || errors.newSpeakerPositionEs || errors.newSpeakerBioCa || errors.newSpeakerBioEs ? <small>Completa todos los campos del ponente rápido.</small> : null}
+        </div>
         <button className="primary-action" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Guardando...' : 'Guardar charla'}</button>
       </form>
     </FormPanel>
@@ -436,7 +486,7 @@ const AttendeeForm = ({ editing, talks, token, onSuccess }) => {
         <Field label="Correo electrónico" error={errors.email?.message}><input type="email" {...register('email', { required: 'El correo es obligatorio' })} /></Field>
         <Field label="Empresa"><input {...register('company')} /></Field>
         <div className="form-grid"><Field label="Isla"><select {...register('location')}><option value="mallorca">Mallorca</option><option value="menorca">Menorca</option><option value="ibiza">Ibiza</option><option value="other">Otro</option></select></Field><Field label="Origen"><select {...register('discoverySource')}><option value="socialMedia">Redes sociales</option><option value="mailing">Mailing</option><option value="wordOfMouth">Boca a boca</option><option value="noneOfTheAbove">Ninguna</option></select></Field></div>
-        <Field label="Charlas asociadas"><select multiple {...register('talkIds')}>{talks.map((talk) => <option key={talk._id} value={talk._id}>{talk.title}</option>)}</select></Field>
+        <Field label="Charlas asociadas"><select multiple {...register('talkIds')}>{talks.map((talk) => <option key={talk._id} value={talk._id}>{getLocalizedText(talk.title)}</option>)}</select></Field>
         <button className="primary-action" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Guardando...' : 'Guardar inscripción'}</button>
       </form>
     </FormPanel>
@@ -452,15 +502,15 @@ const SpeakersSection = ({ speakers, editing, token, onSuccess, onEdit, onDelete
 
 const SpeakerForm = ({ editing, token, onSuccess }) => {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm()
-  useEffect(() => { reset({ fullName: editing?.fullName || '', position: editing?.position || '', bio: editing?.bio || '' }) }, [editing, reset])
+  useEffect(() => { reset({ fullName: editing?.fullName || '', photoUrl: editing?.photoUrl || '', positionCa: getLocalizedFormValue(editing?.position, 'ca'), positionEs: getLocalizedFormValue(editing?.position, 'es'), bioCa: getLocalizedFormValue(editing?.bio, 'ca'), bioEs: getLocalizedFormValue(editing?.bio, 'es') }) }, [editing, reset])
   const onSubmit = async (values) => {
-    const payload = { fullName: values.fullName.trim(), position: values.position.trim(), bio: values.bio.trim() }
+    const payload = { fullName: values.fullName.trim(), photoUrl: values.photoUrl.trim(), position: { ca: values.positionCa.trim(), es: values.positionEs.trim() }, bio: { ca: values.bioCa.trim(), es: values.bioEs.trim() } }
     if (editing?._id) await updateResource('speakers', token, editing._id, payload)
     else await createResource('speakers', token, payload)
     reset()
     await onSuccess('Ponente guardado correctamente.')
   }
-  return <FormPanel title={editing ? 'Editar ponente' : 'Nuevo ponente'} kicker="Ponentes"><form className="admin-form" onSubmit={handleSubmit(onSubmit)} noValidate><Field label="Nombre completo" error={errors.fullName?.message}><input {...register('fullName', { required: 'El nombre es obligatorio' })} /></Field><Field label="Cargo" error={errors.position?.message}><input {...register('position', { required: 'El cargo es obligatorio' })} /></Field><Field label="Biografía" error={errors.bio?.message}><textarea rows="4" {...register('bio', { required: 'La biografía es obligatoria' })} /></Field><button className="primary-action" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Guardando...' : 'Guardar ponente'}</button></form></FormPanel>
+  return <FormPanel title={editing ? 'Editar ponente' : 'Nuevo ponente'} kicker="Ponentes"><form className="admin-form" onSubmit={handleSubmit(onSubmit)} noValidate><Field label="Nombre completo" error={errors.fullName?.message}><input {...register('fullName', { required: 'El nombre es obligatorio' })} /></Field><Field label="URL de la foto"><input type="url" {...register('photoUrl')} /></Field><div className="form-grid"><Field label="Cargo (CA)" error={errors.positionCa?.message}><input {...register('positionCa', { required: 'El cargo en catalán es obligatorio' })} /></Field><Field label="Cargo (ES)" error={errors.positionEs?.message}><input {...register('positionEs', { required: 'El cargo en castellano es obligatorio' })} /></Field></div><Field label="Biografía (CA)" error={errors.bioCa?.message}><textarea rows="4" {...register('bioCa', { required: 'La biografía en catalán es obligatoria' })} /></Field><Field label="Biografía (ES)" error={errors.bioEs?.message}><textarea rows="4" {...register('bioEs', { required: 'La biografía en castellano es obligatoria' })} /></Field><button className="primary-action" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Guardando...' : 'Guardar ponente'}</button></form></FormPanel>
 }
 
 const UsersSection = ({ users, editing, token, onSuccess, onEdit, onDelete }) => (
@@ -492,7 +542,7 @@ const CardsGrid = ({ items, renderItem }) => <div className="cards-grid">{items.
 
 const AttendeeCard = ({ attendee, onEdit, onDelete }) => <article className="record-card"><h3>{attendee.fullName}</h3><p>{attendee.email}</p><p>{locationLabels[attendee.location]} · {discoveryLabels[attendee.discoverySource]}</p><p>{attendee.talkIds?.length || 0} charlas asociadas</p><div className="card-actions"><button type="button" onClick={() => onEdit(attendee)}>Editar</button><button className="danger-button" type="button" onClick={() => onDelete('attendees', attendee._id, `a ${attendee.fullName}`)}>Eliminar</button></div></article>
 
-const SpeakerCard = ({ speaker, onEdit, onDelete }) => <article className="record-card"><h3>{speaker.fullName}</h3><p>{speaker.position}</p><p>{speaker.bio}</p><div className="card-actions"><button type="button" onClick={() => onEdit(speaker)}>Editar</button><button className="danger-button" type="button" onClick={() => onDelete('speakers', speaker._id, `a ${speaker.fullName}`)}>Eliminar</button></div></article>
+const SpeakerCard = ({ speaker, onEdit, onDelete }) => <article className="record-card">{speaker.photoUrl ? <img className="speaker-photo" src={speaker.photoUrl} alt="" /> : null}<h3>{speaker.fullName}</h3><p>{getLocalizedText(speaker.position)}</p><p>{getLocalizedText(speaker.bio)}</p><div className="card-actions"><button type="button" onClick={() => onEdit(speaker)}>Editar</button><button className="danger-button" type="button" onClick={() => onDelete('speakers', speaker._id, `a ${speaker.fullName}`)}>Eliminar</button></div></article>
 
 const UserCard = ({ backofficeUser, onEdit, onDelete }) => <article className="record-card"><h3>{backofficeUser.fullName}</h3><p>{backofficeUser.email}</p><p>Contraseña protegida</p><div className="card-actions"><button type="button" onClick={() => onEdit(backofficeUser)}>Editar</button><button className="danger-button" type="button" onClick={() => onDelete('users', backofficeUser._id || backofficeUser.id, `a ${backofficeUser.fullName}`)}>Eliminar</button></div></article>
 

@@ -1,15 +1,31 @@
 const mongoose = require('mongoose');
 
+const hasLocalizedText = (value) => Boolean(
+  value
+  && typeof value === 'object'
+  && typeof value.ca === 'string'
+  && value.ca.trim()
+  && typeof value.es === 'string'
+  && value.es.trim()
+);
+
 const talkSchema = new mongoose.Schema(
   {
     title: {
-      type: String,
+      type: mongoose.Schema.Types.Mixed,
       required: [true, 'Title is required'],
-      trim: true,
+      validate: {
+        validator: hasLocalizedText,
+        message: 'Title requires Catalan and Spanish text',
+      },
     },
     description: {
-      type: String,
+      type: mongoose.Schema.Types.Mixed,
       required: [true, 'Description is required'],
+      validate: {
+        validator: hasLocalizedText,
+        message: 'Description requires Catalan and Spanish text',
+      },
     },
     date: {
       type: Date,

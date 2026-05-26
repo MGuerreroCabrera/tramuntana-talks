@@ -362,6 +362,14 @@ th {
   border-top: 3px solid #32f8ef;
 }
 
+.speaker-photo {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .record-card h3 {
   margin: 0 0 8px;
   color: #00164f;

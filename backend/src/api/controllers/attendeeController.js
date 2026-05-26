@@ -75,17 +75,16 @@ exports.registerToTalk = async (req, res) => {
       return res.status(404).json({ message: 'Talk not found' });
     }
 
-    if (attendee.talkIds.includes(req.params.talkId)) {
+    if (attendee.talkIds.some((talkId) => talkId.toString() === req.params.talkId)) {
       return res.status(400).json({ message: 'Already registered for this talk' });
     }
 
     attendee.talkIds.push(req.params.talkId);
     await attendee.save();
 
-    if (!talk.attendeeIds.includes(attendee._id)) {
-      talk.attendeeIds.push(attendee._id);
-      await talk.save();
-    }
+    await Talk.findByIdAndUpdate(talk._id, {
+      $addToSet: { attendeeIds: attendee._id },
+    });
 
     const updatedAttendee = await Attendee.findById(req.params.id)
       .populate('talkIds', 'title date time location');
